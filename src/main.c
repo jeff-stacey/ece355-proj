@@ -30,6 +30,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "diag/Trace.h"
+#include "cmsis/cmsis_device.h"
+
+#include "init.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -51,18 +54,30 @@
 #pragma GCC diagnostic ignored "-Wmissing-declarations"
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
+int output_data;
+
 int
 main(int argc, char* argv[])
 {
   // At this stage the system clock should have already been configured
   // at high speed.
 
+	GPIOA_Init();
+
   // Infinite loop
   while (1)
     {
        // Add your code here.
+	  output_data = ADC1->DR;
+	  trace_printf("%d\n", output_data);
+	  int j = 0;
+	  while(j++ < 500000);
     }
 }
+
+
+
+
 
 #pragma GCC diagnostic pop
 
