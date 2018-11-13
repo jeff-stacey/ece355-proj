@@ -17,9 +17,9 @@ void GPIOA_Init(){
 
 	//potentiometer and ADC on PA07
 
-	//input mode and no pullup or pulldown
+	//analog mode and no pullup or pulldown
 	GPIOA->MODER |= GPIO_MODER_MODER7;
-	GPIOA->MODER &= ~(GPIO_PUPDR_PUPDR7);
+	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR7);
 
 	//configure ADC
 	ADC1->CFGR1 |= ADC_CFGR1_CONT; //continuous conversion
@@ -30,5 +30,20 @@ void GPIOA_Init(){
 	trace_printf("ADC enabled on pin A07\n");
 
 	ADC1->CR |= ADC_CR_ADSTART; //start it up!!
+
+	//DAC to optocoupler on PA4
+
+	//turn on the clock to the DAC
+	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
+
+	trace_printf("enabling DAC on pin A04\n");
+	//analog mode and no pullup or pulldown
+	GPIOA->MODER |= GPIO_MODER_MODER4;
+	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR4);
+
+	//enable DAC (automatically on PA4)
+	DAC->CR |= DAC_CR_EN1 | DAC_CR_BOFF1;
+
+
 }
 

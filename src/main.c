@@ -54,6 +54,8 @@
 #pragma GCC diagnostic ignored "-Wmissing-declarations"
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
+//#define DAC_WRITE_REG DAC->DHR12R1
+
 int output_data;
 
 int
@@ -69,7 +71,8 @@ main(int argc, char* argv[])
     {
        // Add your code here.
 	  output_data = ADC1->DR;
-	  trace_printf("%d\n", output_data);
+	  trace_printf("%x\n", output_data);
+	  DAC->DHR12R1 = output_data;
 	  int j = 0;
 	  while(j++ < 500000);
     }
