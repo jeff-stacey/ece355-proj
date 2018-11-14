@@ -33,6 +33,7 @@
 #include "cmsis/cmsis_device.h"
 
 #include "init.h"
+#include "lcd.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -65,17 +66,19 @@ main(int argc, char* argv[])
   // at high speed.
 
 	GPIOA_Init();
+	lcd_config();
+
 
   // Infinite loop
-  while (1)
-    {
-       // Add your code here.
-	  output_data = ADC1->DR;
-	  trace_printf("%x\n", output_data);
-	  DAC->DHR12R1 = output_data;
-	  int j = 0;
-	  while(j++ < 500000);
-    }
+	while (1)
+	{
+		 // Add your code here.
+		output_data = ADC1->DR;
+		trace_printf("%x\n", output_data);
+		DAC->DHR12R1 = output_data;
+		int j = 0;
+		while(j++ < 500000);
+	}
 }
 
 

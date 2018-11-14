@@ -12,7 +12,9 @@
 
 void GPIOA_Init();
 
+void SPI_init();
 
+void TIM3_init();
 
 
 
