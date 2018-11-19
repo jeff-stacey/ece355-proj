@@ -10,79 +10,95 @@
 #include "cmsis/cmsis_device.h"
 #include "init.h"
 
+
+
+#define INTER_SEND_DELAY 25
+#define LCD_CLEAR_COMMAND 0x01
+#define MAX_DISPLAY_QUANTITY 999999
+
+void lcd_delay_ns(int n){
+	//delay by starting, then polling TIM3
+	TIM3->ARR = n;
+	TIM3->CNT = 0;
+	TIM3->EGR |= 1; //update values
+	TIM3->CR1 |= TIM_CR1_CEN; //start
+	while(!(TIM3->SR & TIM_SR_UIF)); //wait for interrupt flag to be set
+	TIM3->SR &= ~(TIM_SR_UIF); //clear interrupt flag
+	return;
+}
+
 void lcd_send_packet(uint8_t data)
-
-
 {
+	//trace_printf("sending packet: %x\n", data);
 	//uses full 8-bit interface !!!
 
-
-	//we ignore the top bit of the packet
-	data &= ~(0x80);
-
 	//first send
+	//trace_printf("\twrite: %x\n", data);
 
 	//LCK low
-	GPIOB->BSRR |= GPIO_BSRR_BR_7;
+	GPIOB->BRR |= SPI1_LCK_PIN;
 
 	//wait for SPI1 ready
-	while(SPI1->SR | SPI_SR_BSY);
-
-	//send with MSB = 0
-	uint8_t p = (0x80 | data);
-	SPI_SendData8(SPI1, p);
-
-	//wait for SPI1 ready
-	while(SPI1->SR | SPI_SR_BSY);
-
-	//LCK high
-	GPIOB->BSRR |= GPIO_BSRR_BS_7;
-
-	//delay by starting, then polling TIM3
-	TIM3->CR1 |= TIM_CR1_CEN;
-	while(0 != TIM3->CNT); //wait for count to hit zero
-
-
-	//second send
-
-	//LCK low
-	GPIOB->BSRR |= GPIO_BSRR_BR_7;
-
-	//wait for SPI1 ready
-	while(SPI1->SR | SPI_SR_BSY);
+	//while(0 == (SPI1->SR & SPI_SR_TXE));
+	while((SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET) &&
+			SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET);
 
 	//send with MSB=0
 	SPI_SendData8(SPI1, data);
 
 	//wait for SPI1 ready
-	while(SPI1->SR | SPI_SR_BSY);
+	while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET);
 
 	//LCK high
-	GPIOB->BSRR |= GPIO_BSRR_BS_7;
-
-	//delay by starting, then polling TIM3
-	TIM3->CR1 |= TIM_CR1_CEN;
-	while(0 != TIM3->CNT); //wait for count to hit zero
+	GPIOB->BSRR |= SPI1_LCK_PIN;
 
 
-	//third send
+	lcd_delay_ns(INTER_SEND_DELAY);
 
+
+	//second send
+
+	//send with MSB = 1
+	uint8_t p = (0x80 | data);
+	//trace_printf("\twrite: %x\n", p);
 
 	//LCK low
-	GPIOB->BSRR |= GPIO_BSRR_BR_7;
+	GPIOB->BRR |= SPI1_LCK_PIN;
 
 	//wait for SPI1 ready
-	while(SPI1->SR | SPI_SR_BSY);
+	while((SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET) &&
+			SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET);
 
-	//send with MSB=1
-	p = (0x80 | data);
 	SPI_SendData8(SPI1, p);
 
 	//wait for SPI1 ready
-	while(SPI1->SR | SPI_SR_BSY);
+	while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET);
 
 	//LCK high
-	GPIOB->BSRR |= GPIO_BSRR_BS_7;
+	GPIOB->BSRR |= SPI1_LCK_PIN;
+
+	//wait
+	lcd_delay_ns(INTER_SEND_DELAY);
+
+
+	//third send
+	//trace_printf("\twrite: %x\n", data);
+
+	//LCK low
+	GPIOB->BSRR |= GPIO_BSRR_BR_4;
+
+	//wait for SPI1 ready
+	while((SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) == RESET) &&
+			SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET);
+
+	//send with MSB=0
+	SPI_SendData8(SPI1, data);
+
+	//wait for SPI1 ready
+	while(SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_BSY) == SET);
+
+	//LCK high
+	GPIOB->BSRR |= SPI1_LCK_PIN;
 
 	//done!!
 
@@ -98,8 +114,10 @@ void lcd_send_command(uint8_t cmd){
 	 *
 	 */
 
-	uint8_t H = cmd >> 4;
-	uint8_t L = cmd | 0xf;
+	uint8_t H = (cmd & 0xf0) >> 4;
+	uint8_t L = cmd & 0xf;
+
+	//trace_printf("sending command: %x (%x %x)\n", cmd, H, L);
 
 	lcd_send_packet(H);
 	lcd_send_packet(L);
@@ -111,11 +129,14 @@ void lcd_set_address(uint8_t addr){
 	lcd_send_command(addr);
 }
 
-void lcd_write_char(char ch){
+void lcd_write_char(uint8_t ch){
+	//since chars and unit8_t are the same, this command works with numbers and single-quote char literals
 	//address should auto increment after each character write
 
-	uint8_t H = ((uint8_t) ch) >> 4;
-	uint8_t L = ((uint8_t) ch) | 0xf;
+	uint8_t H = (((uint8_t) ch) & 0xf0) >> 4;
+	uint8_t L = ((uint8_t) ch) & 0xf;
+
+	//trace_printf("sending character %c (%x %x)\n", ch, H, L);
 
 	uint8_t packet = 0x40 | H;
 	lcd_send_packet(packet);
@@ -124,25 +145,66 @@ void lcd_write_char(char ch){
 	lcd_send_packet(packet);
 }
 
-void lcd_config(){
-	SPI_init();
+void lcd_write_line(char* input_string, int line_no){
+	//writes a string into a line of the display
+	//line_no should be 0 or 1
 
+	int j;
+
+	int starting_address = line_no * 0x40;
+
+	lcd_set_address(starting_address);
+
+	char padded_string[8];
+	sprintf(padded_string, "%8s", input_string);
+
+	for(j = 0; j < 8; j++){
+
+		lcd_write_char(padded_string[j]);
+	}
+}
+
+void lcd_write_resistance(int r){
+	char resistance_string[8];
+	if(r > MAX_DISPLAY_QUANTITY){
+		sprintf(resistance_string, "* OL *");
+	}
+	else {
+		sprintf(resistance_string, "%dOh", r);
+	}
+	lcd_write_line(resistance_string, 0);
+}
+
+void lcd_write_frequency(int f){
+	char freq_string[8];
+	if(f > MAX_DISPLAY_QUANTITY){
+		sprintf(freq_string, "* OL *");
+	}
+	else {
+		sprintf(freq_string, "%dHz", f);
+	}
+	lcd_write_line(freq_string, 1);
+
+}
+
+void lcd_clear_screen(){
+	lcd_send_command(LCD_CLEAR_COMMAND);
+}
+
+void lcd_config(){
 	//switch to 4-bit LCD interface
-	lcd_send_packet(0x20);
+	lcd_send_packet(0x2);
 
 	lcd_send_command(0x28); //DL = 0 (4-bit interface), N=1 (two lines), F=0 (doesn't matter)
 	lcd_send_command(0x0C); //D = 1 (display on), C = 0 (cursor off), B = 0 (no blink)
 	lcd_send_command(0x06); //I/D = 1 (auto-increment), S = 0 (no shift)
-	lcd_send_command(0x01); //clear display
+	lcd_send_command(LCD_CLEAR_COMMAND); //clear display
 
-	//move to address zero
-	lcd_set_address(0);
-
-	//write test character
-	lcd_write_char('a');
-
+	lcd_set_address(0x0);
 
 }
+
+
 
 
 

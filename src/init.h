@@ -10,7 +10,13 @@
 
 //GPIO initialization
 
-void GPIOA_Init();
+#define SPI1_MOSI_PIN (GPIO_Pin_5)
+#define SPI1_SCK_PIN (GPIO_Pin_3)
+#define SPI1_LCK_PIN (GPIO_Pin_4)
+
+void GPIOA_init();
+
+void GPIOB_init();
 
 void SPI_init();
 
