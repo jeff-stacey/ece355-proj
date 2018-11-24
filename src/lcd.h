@@ -10,14 +10,26 @@
 
 #include <stdint.h>
 
+void lcd_delay_ns();
+
+void lcd_send_packet(uint8_t);
+
+void lcd_send_command(uint8_t);
+
+void lcd_set_address(uint8_t);
+
+void lcd_write_char(char);
+
+void lcd_write_line(char*);
+
+void lcd_write_resistance(unsigned int);
+
+void lcd_write_frequency(unsigned int);
+
+void lcd_clear_screen();
+
 void lcd_config();
 
-void lcd_set_address(uint8_t addr);
 
-void lcd_send_command(uint8_t cmd);
-
-void lcd_write_char(char ch);
-
-void lcd_send_packet(uint8_t data);
 
 #endif /* LCD_H_ */

@@ -57,7 +57,9 @@
 
 //#define DAC_WRITE_REG DAC->DHR12R1
 
-int output_data;
+#define POT_MAX_RESISTANCE (5000) //board pot is rated 5k
+#define ADC_MAX_VALUE (0xFFF) //we're using 12-bit mode
+#define RESISTANCE_MULTIPLIER ((float) POT_MAX_RESISTANCE / ADC_MAX_VALUE)
 
 int
 main(int argc, char* argv[])
@@ -65,7 +67,12 @@ main(int argc, char* argv[])
   // At this stage the system clock should have already been configured
   // at high speed.
 
-	GPIOA_Init();
+	uint16_t output_data;
+
+	GPIOA_init();
+	GPIOB_init();
+	TIM3_init();
+	SPI_init();
 	lcd_config();
 
 
@@ -74,10 +81,10 @@ main(int argc, char* argv[])
 	{
 		 // Add your code here.
 		output_data = ADC1->DR;
-		trace_printf("%x\n", output_data);
 		DAC->DHR12R1 = output_data;
-		int j = 0;
-		while(j++ < 500000);
+		unsigned int measured_resistance = (unsigned int) (output_data) * RESISTANCE_MULTIPLIER;
+		lcd_write_resistance(measured_resistance);
+
 	}
 }
 

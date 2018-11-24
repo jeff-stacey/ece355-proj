@@ -12,7 +12,7 @@
 
 
 
-#define INTER_SEND_DELAY 25
+#define INTER_SEND_DELAY 5
 #define LCD_CLEAR_COMMAND 0x01
 #define MAX_DISPLAY_QUANTITY 999999
 
@@ -164,18 +164,18 @@ void lcd_write_line(char* input_string, int line_no){
 	}
 }
 
-void lcd_write_resistance(int r){
+void lcd_write_resistance(unsigned int r){
 	char resistance_string[8];
 	if(r > MAX_DISPLAY_QUANTITY){
 		sprintf(resistance_string, "* OL *");
 	}
 	else {
-		sprintf(resistance_string, "%dOh", r);
+		sprintf(resistance_string, "%d Ohm", r);
 	}
 	lcd_write_line(resistance_string, 0);
 }
 
-void lcd_write_frequency(int f){
+void lcd_write_frequency(unsigned int f){
 	char freq_string[8];
 	if(f > MAX_DISPLAY_QUANTITY){
 		sprintf(freq_string, "* OL *");

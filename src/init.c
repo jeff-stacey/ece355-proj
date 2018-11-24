@@ -93,8 +93,6 @@ void SPI_init(){
 	SPI_Init(SPI1, &spi1_init_struct);
 	SPI_Cmd(SPI1, ENABLE);
 
-	trace_printf("spi data size: %x\n", (SPI1->CR2 & SPI_CR2_DS) >> 8);
-
 	while(SPI1->SR & SPI_SR_BSY);
 
 	trace_printf("SPI interface configured\n");
