@@ -14,6 +14,8 @@
 #define SPI1_SCK_PIN (GPIO_Pin_3)
 #define SPI1_LCK_PIN (GPIO_Pin_4)
 
+#define TIM2_OFLOW_VALUE ((uint32_t) 0xFFFFFFFF)
+
 void GPIOA_init();
 
 void GPIOB_init();
@@ -21,6 +23,10 @@ void GPIOB_init();
 void SPI_init();
 
 void TIM3_init();
+
+void TIM2_init();
+
+void EXTI_init();
 
 
 

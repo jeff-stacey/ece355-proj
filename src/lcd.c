@@ -12,9 +12,10 @@
 
 
 
-#define INTER_SEND_DELAY 5
-#define LCD_CLEAR_COMMAND 0x01
-#define MAX_DISPLAY_QUANTITY 999999
+#define INTER_SEND_DELAY (5)
+#define LCD_CLEAR_COMMAND (0x01)
+#define MAX_DISPLAY_RESISTANCE (9999)
+#define MAX_DISPLAY_FREQUENCY (99999)
 
 void lcd_delay_ns(int n){
 	//delay by starting, then polling TIM3
@@ -166,7 +167,7 @@ void lcd_write_line(char* input_string, int line_no){
 
 void lcd_write_resistance(unsigned int r){
 	char resistance_string[8];
-	if(r > MAX_DISPLAY_QUANTITY){
+	if(r > MAX_DISPLAY_RESISTANCE){
 		sprintf(resistance_string, "* OL *");
 	}
 	else {
@@ -177,11 +178,11 @@ void lcd_write_resistance(unsigned int r){
 
 void lcd_write_frequency(unsigned int f){
 	char freq_string[8];
-	if(f > MAX_DISPLAY_QUANTITY){
+	if((f > MAX_DISPLAY_FREQUENCY) || f == 0){
 		sprintf(freq_string, "* OL *");
 	}
 	else {
-		sprintf(freq_string, "%dHz", f);
+		sprintf(freq_string, "%d Hz ", f);
 	}
 	lcd_write_line(freq_string, 1);
 

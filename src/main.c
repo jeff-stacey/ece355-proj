@@ -34,6 +34,7 @@
 
 #include "init.h"
 #include "lcd.h"
+#include "freq.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -61,13 +62,24 @@
 #define ADC_MAX_VALUE (0xFFF) //we're using 12-bit mode
 #define RESISTANCE_MULTIPLIER ((float) POT_MAX_RESISTANCE / ADC_MAX_VALUE)
 
+#define PERIOD_ERROR (8) //measured difference due to delay between counter read and counter start
+	//TODO: measure the period error again
+#define TICK_LENGTH_NS ((float) 20.833333333)
+#define NS_TO_S_MULTIPLIER (1000000000)
+
+unsigned int period_ticks;
+
 int
 main(int argc, char* argv[])
 {
   // At this stage the system clock should have already been configured
   // at high speed.
 
-	uint16_t output_data;
+	uint16_t dac_output_data;
+	unsigned int measured_resistance;
+	int local_period_ticks;
+	float period_ns;
+	unsigned int measured_freq;
 
 	GPIOA_init();
 	GPIOB_init();
@@ -75,14 +87,29 @@ main(int argc, char* argv[])
 	SPI_init();
 	lcd_config();
 
+	TIM2_init();
+	EXTI_init();
+
 
   // Infinite loop
 	while (1)
 	{
-		 // Add your code here.
-		output_data = ADC1->DR;
-		DAC->DHR12R1 = output_data;
-		unsigned int measured_resistance = (unsigned int) (output_data) * RESISTANCE_MULTIPLIER;
+		//frequency measurement
+		local_period_ticks = period_ticks; //grab this now so it's consistent even if an interrupt changes its value
+		if(local_period_ticks == 0){
+			measured_freq = 0;
+		}
+		else
+		{
+			period_ns = TICK_LENGTH_NS * (period_ticks + PERIOD_ERROR);
+			measured_freq = (unsigned int) NS_TO_S_MULTIPLIER / (period_ns);
+		}
+		lcd_write_frequency(measured_freq);
+
+		//resistance measurement
+		dac_output_data = ADC1->DR;
+		DAC->DHR12R1 = dac_output_data;
+		measured_resistance = (unsigned int) (dac_output_data) * RESISTANCE_MULTIPLIER;
 		lcd_write_resistance(measured_resistance);
 
 	}

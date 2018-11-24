@@ -11,8 +11,10 @@
 #include "cmsis/cmsis_device.h"
 #include "stm32f0-stdperiph/stm32f0xx_spi.h"
 #include "init.h"
+#include "freq.h"
 
 void GPIOA_init(){
+	trace_printf("intializing GPIOA\n");
 	//turn on the clock to GPIOA
 	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
 	RCC->APB2ENR |= RCC_APB2ENR_ADCEN;
@@ -26,10 +28,9 @@ void GPIOA_init(){
 	//configure ADC
 	ADC1->CFGR1 |= ADC_CFGR1_CONT; //continuous conversion
 	ADC1->CHSELR |= ADC_CHSELR_CHSEL7;
-	trace_printf("enabling ADC on pin A07\n");
 	ADC1->CR |= (ADC_CR_ADEN); //calibrate and enable
 	while( ( (ADC1->ISR | ADC_ISR_ADRDY) == 0) && ((ADC1->CR | ADC_CR_ADCAL) == 0) ); //wait for startup to finish
-	trace_printf("ADC enabled on pin A07\n");
+	trace_printf("\tADC enabled on pin A07\n");
 
 	ADC1->CR |= ADC_CR_ADSTART; //start it up!!
 
@@ -38,13 +39,24 @@ void GPIOA_init(){
 	//turn on the clock to the DAC
 	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
 
-	trace_printf("enabling DAC on pin A04\n");
 	//analog mode and no pullup or pulldown
 	GPIOA->MODER |= GPIO_MODER_MODER4;
 	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR4);
 
 	//enable DAC (automatically on PA4)
 	DAC->CR |= DAC_CR_EN1 | DAC_CR_BOFF1;
+	trace_printf("\tDAC enabled on pin A04\n");
+
+
+	//frequency measurement on PA1
+
+	//input mode
+	GPIOA->MODER &= ~(GPIO_MODER_MODER1_1);
+
+	//no pull up or pull down
+	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR0);
+	trace_printf("\tfreq. measurement on pin A01");
+
 
 	trace_printf("GPIOA  configured \n");
 }
@@ -100,18 +112,68 @@ void SPI_init(){
 }
 
 void TIM3_init(){
+	//enable the clock to TIM3
 	RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 
-	TIM3->CR1 = (uint16_t) 0x008C;//buffer auto-reload, count down, stop on OF, interrupt on OF only
+	TIM3->CR1 = (uint16_t) 0x008C;//buffer auto-reload, count up, stop on OF, interrupt on OF only
 
-	TIM3->PSC = 47999/2; //prescale to 1us clock
+	TIM3->PSC = (uint16_t) 47999/2; //prescale to 1us clock
 
-	TIM3->ARR = 100; //overflow at 1ms. could make this shorter if needed.
+	TIM3->ARR = (uint32_t) 100; //overflow at 1ms. could make this shorter if needed.
 
 	TIM3->EGR |= 0x1;
 
-	trace_printf("TIM3 configured \n");
+	trace_printf("TIM3 configured\n");
 
+}
+
+void TIM2_init(){
+	//enable the clock to TIM2
+	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+
+	TIM2->CR1 = ((uint16_t) 0x008C); //buff auto-reload, count up, stop on OF, interrupt on OF only
+
+	//don't scale clock
+	TIM2->PSC = (uint16_t) 0x0000;
+
+	//set auto-reload (overflow) delay to max possible
+	TIM2->ARR = (uint32_t) 0xFFFFFFFF;
+
+	//force an update to the timer registers
+	TIM2->EGR = (uint16_t) 0x0001; //triggers UG bit
+
+	//assign the interrupt priority to 0 in the NVIC
+	NVIC_SetPriority(TIM2_IRQn, 0);
+
+	//enable TIM2 interrupts in the NVIC
+	NVIC_EnableIRQ(TIM2_IRQn);
+
+	//enable interrupt generation from TIM2
+	TIM2->DIER |= TIM_DIER_UIE;
+
+	//start the timer
+	TIM2->CR1 |= TIM_CR1_CEN;
+
+	trace_printf("TIM2 configured\n");
+}
+
+void EXTI_init(){
+	//map EXTI1 line to PA01
+	SYSCFG->EXTICR[0] = SYSCFG_EXTICR1_EXTI1_PA;
+
+	//set EXTI1 line to interrupt on rising edge
+	EXTI->RTSR = EXTI_RTSR_TR1;
+
+	//unmask interrupts from EXTI1 line
+	EXTI->IMR = EXTI_IMR_MR1;
+
+	//assign the interrupt priority to 0 in the NVIC
+	NVIC_SetPriority(EXTI0_1_IRQn, 0);
+
+	//enable EXTI1 interrupts in the NVIC
+	NVIC_EnableIRQ(EXTI0_1_IRQn);
+
+	trace_printf("EXTI1 configured\n");
 }
 
 
