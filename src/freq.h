@@ -9,12 +9,10 @@
 #define FREQ_H_
 
 // don't need to redeclare this prototype
-// because it's in system/src/cmsis/vectors_stm32f0xx.c
-
+// it's in system/src/cmsis/vectors_stm32f0xx.c
 //void TIM2_IRQHandler();
 
 //same with this one
-
 //void EXTI0_1_IRQHandler();
 
 

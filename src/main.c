@@ -1,5 +1,4 @@
-/*
- * This file is part of the µOS++ distribution.
+/* This file is part of the µOS++ distribution.
  *   (https://github.com/micro-os-plus)
  * Copyright (c) 2014 Liviu Ionescu.
  *
@@ -25,8 +24,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-// ----------------------------------------------------------------------------
-
 #include <stdio.h>
 #include <stdlib.h>
 #include "diag/Trace.h"
@@ -36,19 +33,6 @@
 #include "lcd.h"
 #include "freq.h"
 
-// ----------------------------------------------------------------------------
-//
-// STM32F0 empty sample (trace via DEBUG).
-//
-// Trace support is enabled by adding the TRACE macro definition.
-// By default the trace messages are forwarded to the DEBUG output,
-// but can be rerouted to any device or completely suppressed, by
-// changing the definitions required in system/src/diag/trace_impl.c
-// (currently OS_USE_TRACE_ITM, OS_USE_TRACE_SEMIHOSTING_DEBUG/_STDOUT).
-//
-
-// ----- main() ---------------------------------------------------------------
-
 // Sample pragmas to cope with warnings. Please note the related line at
 // the end of this function, used to pop the compiler diagnostics status.
 #pragma GCC diagnostic push
@@ -56,16 +40,14 @@
 #pragma GCC diagnostic ignored "-Wmissing-declarations"
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
-//#define DAC_WRITE_REG DAC->DHR12R1
-
 #define POT_MAX_RESISTANCE (5000) //board pot is rated 5k
 #define ADC_MAX_VALUE (0xFFF) //we're using 12-bit mode
-#define RESISTANCE_MULTIPLIER ((float) POT_MAX_RESISTANCE / ADC_MAX_VALUE)
+#define RESISTANCE_MULTIPLIER ((float) POT_MAX_RESISTANCE / ADC_MAX_VALUE) 
+//conversion factor from ADC measurement to resistance
 
 #define PERIOD_ERROR (8) //measured difference due to delay between counter read and counter start
-	//TODO: measure the period error again
-#define TICK_LENGTH_NS ((float) 20.833333333)
-#define NS_TO_S_MULTIPLIER (1000000000)
+#define TICK_LENGTH_NS ((float) 20.833333333) //lengh of one TIM2 tick in ns
+#define NS_TO_S_MULTIPLIER (1000000000) //conversion factor from nanoseconds to seconds
 
 unsigned int period_ticks;
 
@@ -75,50 +57,37 @@ main(int argc, char* argv[])
   // At this stage the system clock should have already been configured
   // at high speed.
 
-	uint16_t dac_output_data;
-	unsigned int measured_resistance;
-	int local_period_ticks;
-	float period_ns;
-	unsigned int measured_freq;
+	uint16_t dac_output_data; //temporary storage for the measured voltage
+	unsigned int measured_resistance; //calculated porentiometer resistance
+	int local_period_ticks; //sample the global variable into this
+	float period_ns; //calculated period in nanoseconds
+	unsigned int measured_freq; //calculated frequency
+	
+    GPIOA_init(); //initalize GPIOA, ADC, DAC
+	GPIOB_init(); //initialize GPIOB
+	TIM3_init(); //initialize delay timer
+	SPI_init(); //initialize SPI subsystem
+	lcd_config(); //configure LCD
+	TIM2_init(); //initialize freq. measurement timer
+	EXTI_init(); //initialize freq. measurement interrupt line
 
-	GPIOA_init();
-	GPIOB_init();
-	TIM3_init();
-	SPI_init();
-	lcd_config();
-
-	TIM2_init();
-	EXTI_init();
-
-
-  // Infinite loop
-	while (1)
+	while (1) //main loop
 	{
-		//frequency measurement
-		local_period_ticks = period_ticks; //grab this now so it's consistent even if an interrupt changes its value
-		if(local_period_ticks == 0){
-			measured_freq = 0;
+        //frequency measurement
+		local_period_ticks = period_ticks; //grab the tick count in case it changes 
+		if(local_period_ticks == 0){ //if the frequency was too low to measure
+			measured_freq = 0; //print the overload message
+		} else { //otherwise
+			period_ns = TICK_LENGTH_NS * (period_ticks + PERIOD_ERROR); //convert the period to NS
+			measured_freq = (unsigned int) NS_TO_S_MULTIPLIER / (period_ns); //calculate frequency
 		}
-		else
-		{
-			period_ns = TICK_LENGTH_NS * (period_ticks + PERIOD_ERROR);
-			measured_freq = (unsigned int) NS_TO_S_MULTIPLIER / (period_ns);
-		}
-		lcd_write_frequency(measured_freq);
+		lcd_write_frequency(measured_freq); //print the frequency
 
 		//resistance measurement
-		dac_output_data = ADC1->DR;
-		DAC->DHR12R1 = dac_output_data;
-		measured_resistance = (unsigned int) (dac_output_data) * RESISTANCE_MULTIPLIER;
-		lcd_write_resistance(measured_resistance);
-
+		dac_output_data = ADC1->DR; //read raw resistance data
+		DAC->DHR12R1 = dac_output_data; //set output voltage
+		measured_resistance = (unsigned int) (dac_output_data) * RESISTANCE_MULTIPLIER; //calculate resistance
+		lcd_write_resistance(measured_resistance); //print the resistance
 	}
 }
-
-
-
-
-
 #pragma GCC diagnostic pop
-
-// ----------------------------------------------------------------------------

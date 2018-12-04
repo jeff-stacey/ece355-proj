@@ -14,84 +14,60 @@
 #include "freq.h"
 
 void GPIOA_init(){
-	trace_printf("intializing GPIOA\n");
-	//turn on the clock to GPIOA
-	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
-	RCC->APB2ENR |= RCC_APB2ENR_ADCEN;
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN; //turn on the clock to GPIOA
 
 	//potentiometer and ADC on PA07
-
-	//analog mode and no pullup or pulldown
-	GPIOA->MODER |= GPIO_MODER_MODER7;
-	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR7);
+	RCC->APB2ENR |= RCC_APB2ENR_ADCEN; //turn on the clock to the ADC
+	GPIOA->MODER |= GPIO_MODER_MODER7; //analog mode
+	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR7); //no pull
 
 	//configure ADC
 	ADC1->CFGR1 |= ADC_CFGR1_CONT; //continuous conversion
-	ADC1->CHSELR |= ADC_CHSELR_CHSEL7;
+	ADC1->CHSELR |= ADC_CHSELR_CHSEL7; //channel 7
 	ADC1->CR |= (ADC_CR_ADEN); //calibrate and enable
 	while( ( (ADC1->ISR | ADC_ISR_ADRDY) == 0) && ((ADC1->CR | ADC_CR_ADCAL) == 0) ); //wait for startup to finish
-	trace_printf("\tADC enabled on pin A07\n");
 
 	ADC1->CR |= ADC_CR_ADSTART; //start it up!!
 
 	//DAC to optocoupler on PA4
-
-	//turn on the clock to the DAC
-	RCC->APB1ENR |= RCC_APB1ENR_DACEN;
-
-	//analog mode and no pullup or pulldown
-	GPIOA->MODER |= GPIO_MODER_MODER4;
-	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR4);
-
-	//enable DAC (automatically on PA4)
-	DAC->CR |= DAC_CR_EN1 | DAC_CR_BOFF1;
-	trace_printf("\tDAC enabled on pin A04\n");
-
-
-	//frequency measurement on PA1
-
-	//input mode
-	GPIOA->MODER &= ~(GPIO_MODER_MODER1_1);
-
-	//no pull up or pull down
-	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR0);
-	trace_printf("\tfreq. measurement on pin A01");
-
+	RCC->APB1ENR |= RCC_APB1ENR_DACEN; //turn on clock to DAC
+	GPIOA->MODER |= GPIO_MODER_MODER4; //analog mode
+	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR4); //no pull
+	DAC->CR |= DAC_CR_EN1 | DAC_CR_BOFF1; //enable DAC (automatically on PA4)
+	
+    //frequency measurement on PA1
+	GPIOA->MODER &= ~(GPIO_MODER_MODER1_1); //input mode
+	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR0); //no pull up or pull down
 
 	trace_printf("GPIOA  configured \n");
 }
 
 void GPIOB_init(){
-	//enable clock to GPIOB
-	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
+	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;//enable clock to GPIOB
 
-	//configure PB4 as LCK (using regular GPIO out with pull-down)
+	//configure PB4 as LCK (using regular GPIO out with no pull)
 	GPIOB->MODER &= ~(GPIO_MODER_MODER4_1);
 	GPIOB->MODER |= GPIO_MODER_MODER4_0;
 	GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR4);
 
-	//configure the SPI MOSI and SCK pins
+	//configure PB5 as MOSI (alternate function mode and no pull)
+    GPIOB->MODER &= ~(GPIO_MODER_MODER5_0);
+	GPIOB->MODER |= GPIO_MODER_MODER5_1;
+    GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR5);
 
-	GPIO_InitTypeDef sck_mosi_init_struct;
-
-	sck_mosi_init_struct.GPIO_Pin = SPI1_MOSI_PIN | SPI1_SCK_PIN;
-	sck_mosi_init_struct.GPIO_Mode = GPIO_Mode_AF;
-	sck_mosi_init_struct.GPIO_Speed = GPIO_Speed_50MHz;
-	sck_mosi_init_struct.GPIO_OType = GPIO_OType_PP;
-	sck_mosi_init_struct.GPIO_PuPd = GPIO_PuPd_NOPULL;
-
-	GPIO_Init(GPIOB, &sck_mosi_init_struct);
-
-	trace_printf("GPIOB configured \n");
-
+    //configure PB3 as SCK (alternate function and no pull)
+    GPIOB->MODER &= ~(GPIO_MODER_MODER3_0);
+	GPIOB->MODER |= GPIO_MODER_MODER3_1;
+    GPIOB->PUPDR &= ~(GPIO_PUPDR_PUPDR3);
+	
+    trace_printf("GPIOB configured \n");
 }
 
 void SPI_init(){
-	//enable clock to SPI1
-	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;RCC_APB2ENR_SPI1EN;//enable clock to SPI1
 
+    //CMSIS initialization of the SPI device
 	SPI_InitTypeDef spi1_init_struct;
-
 	spi1_init_struct.SPI_Direction = SPI_Direction_1Line_Tx;
 	spi1_init_struct.SPI_Mode = SPI_Mode_Master;
 	spi1_init_struct.SPI_DataSize = SPI_DataSize_8b;
@@ -101,12 +77,9 @@ void SPI_init(){
 	spi1_init_struct.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
 	spi1_init_struct.SPI_FirstBit = SPI_FirstBit_MSB;
 	spi1_init_struct.SPI_CRCPolynomial = 7;
-
 	SPI_Init(SPI1, &spi1_init_struct);
-	SPI_Cmd(SPI1, ENABLE);
-
-	while(SPI1->SR & SPI_SR_BSY);
-
+	SPI_Cmd(SPI1, ENABLE); //SPI is now enabled
+	while(SPI1->SR & SPI_SR_BSY); //wait for device to be ready
 	trace_printf("SPI interface configured\n");
 
 }
@@ -117,7 +90,7 @@ void TIM3_init(){
 
 	TIM3->CR1 = (uint16_t) 0x008C;//buffer auto-reload, count up, stop on OF, interrupt on OF only
 
-	TIM3->PSC = (uint16_t) 47999/2; //prescale to 1us clock
+	TIM3->PSC = (uint16_t) 24000; //prescale to 1us clock
 
 	TIM3->ARR = (uint32_t) 100; //overflow at 1ms. could make this shorter if needed.
 
@@ -132,46 +105,23 @@ void TIM2_init(){
 	RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
 
 	TIM2->CR1 = ((uint16_t) 0x008C); //buff auto-reload, count up, stop on OF, interrupt on OF only
-
-	//don't scale clock
-	TIM2->PSC = (uint16_t) 0x0000;
-
-	//set auto-reload (overflow) delay to max possible
-	TIM2->ARR = (uint32_t) 0xFFFFFFFF;
-
-	//force an update to the timer registers
-	TIM2->EGR = (uint16_t) 0x0001; //triggers UG bit
-
-	//assign the interrupt priority to 0 in the NVIC
-	NVIC_SetPriority(TIM2_IRQn, 0);
-
-	//enable TIM2 interrupts in the NVIC
-	NVIC_EnableIRQ(TIM2_IRQn);
-
-	//enable interrupt generation from TIM2
-	TIM2->DIER |= TIM_DIER_UIE;
-
-	//start the timer
-	TIM2->CR1 |= TIM_CR1_CEN;
+	TIM2->PSC = (uint16_t) 0x0000; //don't scale clock
+	TIM2->ARR = (uint32_t) 0xFFFFFFFF; //set auto-reload (overflow) delay to max possible
+	TIM2->EGR = (uint16_t) 0x0001; //force registers to update
+	NVIC_SetPriority(TIM2_IRQn, 0); //assign the interrupt priority to 0 in the NVIC
+	NVIC_EnableIRQ(TIM2_IRQn);	//enable TIM2 interrupts in the NVIC
+	TIM2->DIER |= TIM_DIER_UIE;	//enable interrupt generation from TIM2
+	TIM2->CR1 |= TIM_CR1_CEN;//start the timer
 
 	trace_printf("TIM2 configured\n");
 }
 
 void EXTI_init(){
-	//map EXTI1 line to PA01
-	SYSCFG->EXTICR[0] = SYSCFG_EXTICR1_EXTI1_PA;
-
-	//set EXTI1 line to interrupt on rising edge
-	EXTI->RTSR = EXTI_RTSR_TR1;
-
-	//unmask interrupts from EXTI1 line
-	EXTI->IMR = EXTI_IMR_MR1;
-
-	//assign the interrupt priority to 0 in the NVIC
-	NVIC_SetPriority(EXTI0_1_IRQn, 0);
-
-	//enable EXTI1 interrupts in the NVIC
-	NVIC_EnableIRQ(EXTI0_1_IRQn);
+	SYSCFG->EXTICR[0] = SYSCFG_EXTICR1_EXTI1_PA; //map EXTI1 line to PA01
+	EXTI->RTSR = EXTI_RTSR_TR1;	//set EXTI1 line to interrupt on rising edge
+	EXTI->IMR = EXTI_IMR_MR1;	//unmask interrupts from EXTI1 line
+	NVIC_SetPriority(EXTI0_1_IRQn, 0);	//assign the interrupt priority to 0 in the NVIC
+	NVIC_EnableIRQ(EXTI0_1_IRQn);//enable EXTI1 interrupts in the NVIC
 
 	trace_printf("EXTI1 configured\n");
 }
